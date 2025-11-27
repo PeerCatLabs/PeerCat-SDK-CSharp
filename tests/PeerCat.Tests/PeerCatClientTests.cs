@@ -157,7 +157,7 @@ public class PeerCatClientTests
     public async Task GetPricesAsync_ReturnsPrices()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/prices")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/price")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 solPrice = 180.50m,
@@ -191,7 +191,7 @@ public class PeerCatClientTests
     public async Task GetBalanceAsync_ReturnsBalance()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/account/balance")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/balance")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 credits = 10.50m,
@@ -218,7 +218,7 @@ public class PeerCatClientTests
     public async Task GetHistoryAsync_ReturnsHistory()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/account/history")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/history")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 items = new[]
@@ -251,7 +251,7 @@ public class PeerCatClientTests
     public async Task GetHistoryAsync_WithPagination_IncludesQueryParams()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/account/history?limit=10&offset=20")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/history?limit=10&offset=20")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 items = Array.Empty<object>(),
@@ -343,6 +343,39 @@ public class PeerCatClientTests
         // If no exception, the test passes
     }
 
+    [Fact]
+    public async Task UpdateKeyNameAsync_SendsPatchRequest()
+    {
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When(HttpMethod.Patch, $"{BaseUrl}/keys/key_123")
+            .Respond("application/json", JsonSerializer.Serialize(new { success = true }));
+
+        using var client = CreateClient(mockHttp);
+        await client.UpdateKeyNameAsync("key_123", "New Key Name");
+
+        // If no exception, the test passes
+    }
+
+    [Fact]
+    public async Task UpdateKeyNameAsync_WithEmptyKeyId_ThrowsArgumentException()
+    {
+        var mockHttp = new MockHttpMessageHandler();
+        using var client = CreateClient(mockHttp);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.UpdateKeyNameAsync("", "New Name"));
+    }
+
+    [Fact]
+    public async Task UpdateKeyNameAsync_WithEmptyName_ThrowsArgumentException()
+    {
+        var mockHttp = new MockHttpMessageHandler();
+        using var client = CreateClient(mockHttp);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.UpdateKeyNameAsync("key_123", ""));
+    }
+
     #endregion
 
     #region On-Chain Tests
@@ -351,7 +384,7 @@ public class PeerCatClientTests
     public async Task SubmitPromptAsync_ReturnsSubmission()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Post, $"{BaseUrl}/onchain/submit")
+        mockHttp.When(HttpMethod.Post, $"{BaseUrl}/prompts")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 submissionId = "sub_123",
@@ -381,7 +414,7 @@ public class PeerCatClientTests
     public async Task GetGenerationStatusAsync_ReturnsStatus()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/onchain/status/tx_signature_123")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/generate/tx_signature_123")
             .Respond("application/json", JsonSerializer.Serialize(new
             {
                 txSignature = "tx_signature_123",
@@ -409,7 +442,7 @@ public class PeerCatClientTests
     public async Task ApiError_ThrowsAuthenticationException()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/account/balance")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/balance")
             .Respond(HttpStatusCode.Unauthorized, "application/json", JsonSerializer.Serialize(new
             {
                 error = new
@@ -482,7 +515,7 @@ public class PeerCatClientTests
     public async Task ApiError_ThrowsNotFoundException()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/onchain/status/invalid_tx")
+        mockHttp.When(HttpMethod.Get, $"{BaseUrl}/generate/invalid_tx")
             .Respond(HttpStatusCode.NotFound, "application/json", JsonSerializer.Serialize(new
             {
                 error = new

@@ -150,7 +150,7 @@ public class PeerCatClient : IDisposable
     /// <returns>Price information</returns>
     public Task<PriceResponse> GetPricesAsync(CancellationToken cancellationToken = default)
     {
-        return GetAsync<PriceResponse>("/prices", cancellationToken);
+        return GetAsync<PriceResponse>("/price", cancellationToken);
     }
 
     #endregion
@@ -164,7 +164,7 @@ public class PeerCatClient : IDisposable
     /// <returns>Balance information</returns>
     public Task<Balance> GetBalanceAsync(CancellationToken cancellationToken = default)
     {
-        return GetAsync<Balance>("/account/balance", cancellationToken);
+        return GetAsync<Balance>("/balance", cancellationToken);
     }
 
     /// <summary>
@@ -183,7 +183,7 @@ public class PeerCatClient : IDisposable
         if (limit.HasValue) query.Add($"limit={limit.Value}");
         if (offset.HasValue) query.Add($"offset={offset.Value}");
 
-        var path = "/account/history";
+        var path = "/history";
         if (query.Count > 0) path += "?" + string.Join("&", query);
 
         return GetAsync<HistoryResponse>(path, cancellationToken);
@@ -231,6 +231,22 @@ public class PeerCatClient : IDisposable
         await DeleteAsync($"/keys/{Uri.EscapeDataString(keyId)}", cancellationToken);
     }
 
+    /// <summary>
+    /// Update an API key's name
+    /// </summary>
+    /// <param name="keyId">Key ID to update</param>
+    /// <param name="name">New name for the key</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    public async Task UpdateKeyNameAsync(string keyId, string name, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(keyId))
+            throw new ArgumentException("Key ID is required", nameof(keyId));
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name is required", nameof(name));
+
+        await PatchAsync($"/keys/{Uri.EscapeDataString(keyId)}", new { name }, cancellationToken);
+    }
+
     #endregion
 
     #region On-Chain Payments
@@ -274,7 +290,7 @@ public class PeerCatClient : IDisposable
         if (string.IsNullOrWhiteSpace(request.Prompt))
             throw new ArgumentException("Prompt is required", nameof(request));
 
-        return PostAsync<PromptSubmission>("/onchain/submit", request, cancellationToken);
+        return PostAsync<PromptSubmission>("/prompts", request, cancellationToken);
     }
 
     /// <summary>
@@ -291,7 +307,7 @@ public class PeerCatClient : IDisposable
             throw new ArgumentException("Transaction signature is required", nameof(txSignature));
 
         return GetAsync<OnChainGenerationStatus>(
-            $"/onchain/status/{Uri.EscapeDataString(txSignature)}",
+            $"/generate/{Uri.EscapeDataString(txSignature)}",
             cancellationToken);
     }
 
@@ -328,9 +344,24 @@ public class PeerCatClient : IDisposable
         }, cancellationToken);
     }
 
+    private async Task PatchAsync(string path, object body, CancellationToken cancellationToken)
+    {
+        await ExecuteWithRetryAsync<SuccessResponse>(async () =>
+        {
+            var json = JsonSerializer.Serialize(body, _jsonOptions);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Patch, _baseUrl + path) { Content = content };
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            return await HandleResponseAsync<SuccessResponse>(response, cancellationToken);
+        }, cancellationToken);
+    }
+
     private async Task<T> HandleResponseAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Parse rate limit headers (useful for both success and error cases)
+        var rateLimitInfo = RateLimitInfo.FromHeaders(response.Headers);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -346,7 +377,7 @@ public class PeerCatClient : IDisposable
 
             if (errorResponse?.Error != null)
             {
-                throw PeerCatException.FromApiError((int)response.StatusCode, errorResponse.Error);
+                throw PeerCatException.FromApiError((int)response.StatusCode, errorResponse.Error, rateLimitInfo);
             }
 
             throw new PeerCatException(
