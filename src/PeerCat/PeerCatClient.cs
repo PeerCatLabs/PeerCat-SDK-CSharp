@@ -394,17 +394,23 @@ public class PeerCatClient : IDisposable
 
     private async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)
     {
-        var attempt = 0;
-        while (true)
+        Exception? lastException = null;
+
+        for (var attempt = 0; attempt <= _maxRetries; attempt++)
         {
             try
             {
                 return await operation();
             }
-            catch (PeerCatException ex) when (ex.IsRetryable && attempt < _maxRetries)
+            catch (PeerCatException ex) when (ex.IsRetryable)
             {
-                attempt++;
-                var delay = TimeSpan.FromMilliseconds(Math.Pow(2, attempt) * 100);
+                lastException = ex;
+
+                if (attempt >= _maxRetries)
+                    throw;
+
+                // Use Retry-After for rate limits, otherwise exponential backoff
+                var delay = TimeSpan.FromMilliseconds(Math.Min(Math.Pow(2, attempt) * 1000, 10000));
 
                 if (ex is RateLimitException rle && rle.RetryAfter.HasValue)
                 {
@@ -413,13 +419,20 @@ public class PeerCatClient : IDisposable
 
                 await Task.Delay(delay, cancellationToken);
             }
-            catch (HttpRequestException) when (attempt < _maxRetries)
+            catch (HttpRequestException ex)
             {
-                attempt++;
-                var delay = TimeSpan.FromMilliseconds(Math.Pow(2, attempt) * 100);
+                lastException = ex;
+
+                if (attempt >= _maxRetries)
+                    throw;
+
+                var delay = TimeSpan.FromMilliseconds(Math.Min(Math.Pow(2, attempt) * 1000, 10000));
                 await Task.Delay(delay, cancellationToken);
             }
         }
+
+        // Should never reach here, but just in case
+        throw lastException ?? new InvalidOperationException("Retry logic failed unexpectedly");
     }
 
     #endregion

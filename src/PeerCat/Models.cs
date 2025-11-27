@@ -101,6 +101,10 @@ public record PriceResponse
     [JsonPropertyName("updatedAt")]
     public required string UpdatedAt { get; init; }
 
+    /// <summary>Treasury PDA address to send payments to</summary>
+    [JsonPropertyName("treasury")]
+    public required string Treasury { get; init; }
+
     /// <summary>Prices for each model</summary>
     [JsonPropertyName("models")]
     public required IReadOnlyList<ModelPrice> Models { get; init; }

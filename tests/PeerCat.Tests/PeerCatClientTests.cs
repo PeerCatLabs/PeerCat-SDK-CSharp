@@ -163,6 +163,7 @@ public class PeerCatClientTests
                 solPrice = 180.50m,
                 slippageTolerance = 0.02m,
                 updatedAt = "2024-01-15T10:30:00Z",
+                treasury = "9JKi6Tr7JdsTJw1zNedF5vML9GpPnjHD9DWuZq1oE6nV",
                 models = new[]
                 {
                     new
@@ -180,6 +181,7 @@ public class PeerCatClientTests
 
         Assert.Equal(180.50m, prices.SolPrice);
         Assert.Equal(0.02m, prices.SlippageTolerance);
+        Assert.Equal("9JKi6Tr7JdsTJw1zNedF5vML9GpPnjHD9DWuZq1oE6nV", prices.Treasury);
         Assert.Single(prices.Models);
     }
 
