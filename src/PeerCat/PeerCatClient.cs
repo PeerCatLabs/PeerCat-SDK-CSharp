@@ -13,11 +13,11 @@ public record PeerCatOptions
     /// <summary>API key for authentication</summary>
     public required string ApiKey { get; init; }
 
-    /// <summary>Base URL for the API (default: https://api.peerc.at/v1)</summary>
-    public string BaseUrl { get; init; } = "https://api.peerc.at/v1";
+    /// <summary>Base URL for the API (default: https://api.peerc.at)</summary>
+    public string BaseUrl { get; init; } = "https://api.peerc.at";
 
-    /// <summary>Request timeout (default: 30 seconds)</summary>
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
+    /// <summary>Request timeout (default: 60 seconds)</summary>
+    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(60);
 
     /// <summary>Maximum number of retries for failed requests (default: 3)</summary>
     public int MaxRetries { get; init; } = 3;
@@ -125,7 +125,7 @@ public class PeerCatClient : IDisposable
         if (string.IsNullOrWhiteSpace(request.Prompt))
             throw new ArgumentException("Prompt is required", nameof(request));
 
-        return PostAsync<GenerateResult>("/generate", request, cancellationToken);
+        return PostAsync<GenerateResult>("/v1/generate", request, cancellationToken);
     }
 
     #endregion
@@ -139,7 +139,7 @@ public class PeerCatClient : IDisposable
     /// <returns>List of available models</returns>
     public async Task<IReadOnlyList<Model>> GetModelsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await GetAsync<ModelsResponse>("/models", cancellationToken);
+        var response = await GetAsync<ModelsResponse>("/v1/models", cancellationToken);
         return response.Models;
     }
 
@@ -150,7 +150,7 @@ public class PeerCatClient : IDisposable
     /// <returns>Price information</returns>
     public Task<PriceResponse> GetPricesAsync(CancellationToken cancellationToken = default)
     {
-        return GetAsync<PriceResponse>("/price", cancellationToken);
+        return GetAsync<PriceResponse>("/v1/price", cancellationToken);
     }
 
     #endregion
@@ -164,7 +164,7 @@ public class PeerCatClient : IDisposable
     /// <returns>Balance information</returns>
     public Task<Balance> GetBalanceAsync(CancellationToken cancellationToken = default)
     {
-        return GetAsync<Balance>("/balance", cancellationToken);
+        return GetAsync<Balance>("/v1/balance", cancellationToken);
     }
 
     /// <summary>
@@ -183,7 +183,7 @@ public class PeerCatClient : IDisposable
         if (limit.HasValue) query.Add($"limit={limit.Value}");
         if (offset.HasValue) query.Add($"offset={offset.Value}");
 
-        var path = "/history";
+        var path = "/v1/history";
         if (query.Count > 0) path += "?" + string.Join("&", query);
 
         return GetAsync<HistoryResponse>(path, cancellationToken);
@@ -204,7 +204,7 @@ public class PeerCatClient : IDisposable
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return PostAsync<CreateKeyResult>("/keys", request, cancellationToken);
+        return PostAsync<CreateKeyResult>("/v1/keys", request, cancellationToken);
     }
 
     /// <summary>
@@ -214,7 +214,7 @@ public class PeerCatClient : IDisposable
     /// <returns>List of API keys</returns>
     public async Task<IReadOnlyList<ApiKey>> ListKeysAsync(CancellationToken cancellationToken = default)
     {
-        var response = await GetAsync<KeysResponse>("/keys", cancellationToken);
+        var response = await GetAsync<KeysResponse>("/v1/keys", cancellationToken);
         return response.Keys;
     }
 
@@ -228,7 +228,7 @@ public class PeerCatClient : IDisposable
         if (string.IsNullOrWhiteSpace(keyId))
             throw new ArgumentException("Key ID is required", nameof(keyId));
 
-        await DeleteAsync($"/keys/{Uri.EscapeDataString(keyId)}", cancellationToken);
+        await DeleteAsync($"/v1/keys/{Uri.EscapeDataString(keyId)}", cancellationToken);
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ public class PeerCatClient : IDisposable
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name is required", nameof(name));
 
-        await PatchAsync($"/keys/{Uri.EscapeDataString(keyId)}", new { name }, cancellationToken);
+        await PatchAsync($"/v1/keys/{Uri.EscapeDataString(keyId)}", new { name }, cancellationToken);
     }
 
     #endregion
@@ -290,7 +290,7 @@ public class PeerCatClient : IDisposable
         if (string.IsNullOrWhiteSpace(request.Prompt))
             throw new ArgumentException("Prompt is required", nameof(request));
 
-        return PostAsync<PromptSubmission>("/prompts", request, cancellationToken);
+        return PostAsync<PromptSubmission>("/v1/prompts", request, cancellationToken);
     }
 
     /// <summary>
@@ -307,7 +307,7 @@ public class PeerCatClient : IDisposable
             throw new ArgumentException("Transaction signature is required", nameof(txSignature));
 
         return GetAsync<OnChainGenerationStatus>(
-            $"/generate/{Uri.EscapeDataString(txSignature)}",
+            $"/v1/generate/{Uri.EscapeDataString(txSignature)}",
             cancellationToken);
     }
 
